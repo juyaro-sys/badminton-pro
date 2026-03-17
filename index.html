@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>배드민턴 대회관리 PRO</title>
+
+<style>
+
+body{
+font-family:Arial;
+text-align:center;
+background:#f4f4f4;
+}
+
+h1{
+background:#222;
+color:white;
+padding:10px;
+}
+
+button{
+padding:10px;
+margin:5px;
+font-size:16px;
+}
+
+.match{
+background:white;
+margin:8px;
+padding:10px;
+border-radius:10px;
+}
+
+table{
+margin:auto;
+border-collapse:collapse;
+}
+
+td,th{
+border:1px solid #aaa;
+padding:6px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>🏸 배드민턴 PRO</h1>
+
+<h2>팀 등록</h2>
+
+<input id="teamInput">
+<button onclick="addTeam()">추가</button>
+
+<div id="teamList"></div>
+
+<h2>조 수</h2>
+
+<select id="groupCount">
+<option value="2">2조</option>
+<option value="4">4조</option>
+</select>
+
+<button onclick="makeGroups()">자동 조편성</button>
+
+<div id="groups"></div>
+
+<h2>경기</h2>
+
+<div id="matches"></div>
+
+<h2>순위표</h2>
+
+<div id="ranking"></div>
+
+<script>
+
+let teams=[]
+let groups={}
+let matches=[]
+let scoreData={}
+
+function addTeam(){
+
+let name=document.getElementById("teamInput").value
+
+teams.push(name)
+
+document.getElementById("teamList").innerHTML=teams.join("<br>")
+
+document.getElementById("teamInput").value=""
+
+}
+
+function shuffle(array){
+
+for(let i=array.length-1;i>0;i--){
+
+let j=Math.floor(Math.random()*(i+1))
+
+[array[i],array[j]]=[array[j],array[i]]
+
+}
+
+}
+
+function makeGroups(){
+
+shuffle(teams)
+
+let groupCount=parseInt(document.getElementById("groupCount").value)
+
+groups={}
+
+for(let i=0;i<groupCount;i++){
+groups["Group "+(i+1)]=[]
+}
+
+teams.forEach((t,i)=>{
+
+let g="Group "+((i%groupCount)+1)
+
+groups[g].push(t)
+
+})
+
+showGroups()
+
+makeMatches()
+
+}
+
+function showGroups(){
+
+let html=""
+
+for(let g in groups){
+
+html+="<h3>"+g+"</h3>"
+
+groups[g].forEach(t=>{
+html+=t+"<br>"
+})
+
+}
+
+document.getElementById("groups").innerHTML=html
+
+}
+
+function makeMatches(){
+
+matches=[]
+
+for(let g in groups){
+
+let t=groups[g]
+
+for(let i=0;i<t.length;i++){
+
+for(let j=i+1;j<t.length;j++){
+
+matches.push({
+teamA:t[i],
+teamB:t[j],
+group:g
+})
+
+}
+
+}
+
+}
+
+showMatches()
+
+}
+
+function showMatches(){
+
+let html=""
+
+matches.forEach((m,i)=>{
+
+html+=`<div class="match">
+
+${m.group} : ${m.teamA} vs ${m.teamB}
+
+<br>
+
+<input id="a${i}" type="number" placeholder="A점수">
+
+<input id="b${i}" type="number" placeholder="B점수">
+
+<button onclick="saveScore(${i})">저장</button>
+
+</div>`
+
+})
+
+document.getElementById("matches").innerHTML=html
+
+}
+
+function saveScore(i){
+
+let a=parseInt(document.getElementById("a"+i).value)
+
+let b=parseInt(document.getElementById("b"+i).value)
+
+scoreData[i]={a:a,b:b}
+
+calcRanking()
+
+}
+
+function calcRanking(){
+
+let table={}
+
+teams.forEach(t=>{
+
+table[t]={win:0,lose:0,point:0,against:0}
+
+})
+
+matches.forEach((m,i)=>{
+
+if(scoreData[i]){
+
+let a=scoreData[i].a
+let b=scoreData[i].b
+
+table[m.teamA].point+=a
+table[m.teamA].against+=b
+
+table[m.teamB].point+=b
+table[m.teamB].against+=a
+
+if(a>b){
+table[m.teamA].win++
+table[m.teamB].lose++
+}else{
+table[m.teamB].win++
+table[m.teamA].lose++
+}
+
+}
+
+})
+
+let arr=Object.entries(table)
+
+arr.sort((x,y)=>{
+
+if(y[1].win!=x[1].win){
+return y[1].win-x[1].win
+}
+
+let diffX=x[1].point-x[1].against
+let diffY=y[1].point-y[1].against
+
+return diffY-diffX
+
+})
+
+let html="<table>"
+
+html+="<tr><th>팀</th><th>승</th><th>패</th><th>득점</th><th>실점</th></tr>"
+
+arr.forEach(r=>{
+
+html+=`<tr>
+<td>${r[0]}</td>
+<td>${r[1].win}</td>
+<td>${r[1].lose}</td>
+<td>${r[1].point}</td>
+<td>${r[1].against}</td>
+</tr>`
+
+})
+
+html+="</table>"
+
+document.getElementById("ranking").innerHTML=html
+
+}
+
+</script>
+
+</body>
+</html>
