@@ -2,179 +2,118 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>배드민턴 풀리그 PRO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>복식 풀리그 대진 생성기</title>
     <style>
-        :root { --primary: #007bff; --bg: #f4f7f6; }
-        body { font-family: -apple-system, sans-serif; text-align: center; background: var(--bg); margin: 0; padding-bottom: 50px; }
-        h1 { background: #222; color: white; padding: 15px; margin: 0; font-size: 20px; }
-        .card { background: white; margin: 10px; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, button { padding: 12px; margin: 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px; }
-        input { width: 70%; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; }
-        .reset-btn { background: #dc3545; margin-top: 20px; font-size: 12px; padding: 5px 10px; }
-        
-        /* 경기 카드 스타일 */
-        .match-item { background: #fff; margin: 10px auto; padding: 15px; border-left: 5px solid var(--primary); display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .score-row { display: flex; align-items: center; gap: 10px; font-weight: bold; }
-        .score-row input { width: 60px; text-align: center; margin: 0; }
-        
-        /* 순위표 스타일 */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: white; }
-        th, td { border: 1px solid #eee; padding: 10px; font-size: 14px; }
-        th { background: #f8f9fa; }
-        .rank-1 { background: #fff9c4; font-weight: bold; }
+        :root { --primary: #2563eb; --bg: #f8fafc; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 20px; color: #334155; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h2 { color: var(--primary); text-align: center; margin-bottom: 20px; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
+        input { flex: 1; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; }
+        button { padding: 10px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        button.clear { background: #64748b; }
+        .team-list { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .team-badge { background: #e2e8f0; padding: 6px 12px; border-radius: 20px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+        .remove-btn { color: #ef4444; cursor: pointer; font-weight: bold; }
+        .match-card { background: #f1f5f9; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        .vs { font-weight: bold; color: #94a3b8; margin: 0 10px; }
+        .score-input { width: 40px; text-align: center; border-radius: 4px; border: 1px solid #cbd5e1; margin: 0 5px; }
     </style>
 </head>
 <body>
 
-<h1>🏸 배드민턴 전체 풀리그</h1>
+<div class="container">
+    <h2>🏸 복식 풀리그 생성기</h2>
+    
+    <div class="input-group">
+        <input type="text" id="teamInput" placeholder="팀명 입력 (예: 홍길동/임꺽정)">
+        <button onclick="addTeam()">추가</button>
+    </div>
 
-<div class="card">
-    <h3>1. 팀 등록 (참여자 전원)</h3>
-    <input id="teamInput" placeholder="팀 또는 이름 입력">
-    <button onclick="addTeam()">추가</button>
-    <div id="teamList" style="margin-top:10px; font-size:14px; color:#555;"></div>
+    <div id="teamList" class="team-list"></div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button style="flex: 1;" onclick="generateLeague()">대진 생성하기</button>
+        <button class="clear" onclick="resetData()">초기화</button>
+    </div>
+
+    <div id="matchBoard"></div>
 </div>
-
-<div class="card">
-    <button onclick="generateFullLeague()" style="width:100%; background:#28a745;">🔄 전체 풀리그 대진 생성</button>
-    <p style="font-size:12px; color:gray;">* 모든 참가자가 서로 한 번씩 경기합니다.</p>
-</div>
-
-<div id="mainContent" style="display:none;">
-    <h2>2. 경기 결과 입력</h2>
-    <div id="matchesDisplay"></div>
-
-    <h2>3. 전체 순위표</h2>
-    <div id="rankingDisplay" class="card"></div>
-</div>
-
-<button class="reset-btn" onclick="resetAll()">데이터 전체 초기화</button>
 
 <script>
-let teams = JSON.parse(localStorage.getItem('bm_teams')) || [];
-let scores = JSON.parse(localStorage.getItem('bm_scores')) || {};
+    let teams = JSON.parse(localStorage.getItem('doublesTeams')) || [];
 
-// 초기화 실행
-window.onload = () => {
-    updateTeamList();
-    if (teams.length > 0 && Object.keys(scores).length > 0) {
-        generateFullLeague(false); // 저장된 데이터가 있으면 불러오기
-    }
-};
-
-function addTeam() {
-    let name = document.getElementById("teamInput").value.trim();
-    if(!name) return;
-    if(teams.includes(name)) { alert("이미 등록된 이름입니다."); return; }
-    teams.push(name);
-    saveData();
-    updateTeamList();
-    document.getElementById("teamInput").value = "";
-}
-
-function updateTeamList() {
-    document.getElementById("teamList").innerText = teams.length > 0 ? "참가자: " + teams.join(", ") : "등록된 참가자가 없습니다.";
-}
-
-function generateFullLeague(isNew = true) {
-    if(teams.length < 2) { alert("최소 2명(팀) 이상 필요합니다."); return; }
-    if(isNew) {
-        if(!confirm("대진을 새로 생성하시겠습니까? 기존 점수는 초기화됩니다.")) return;
-        scores = {};
-        // 무작위 순서 섞기
-        teams.sort(() => Math.random() - 0.5);
+    function save() {
+        localStorage.setItem('doublesTeams', JSON.stringify(teams));
+        renderTeams();
     }
 
-    document.getElementById("mainContent").style.display = "block";
-    let matches = [];
-    
-    // 전체 풀리그 조합 생성 (nC2)
-    for(let i=0; i<teams.length; i++) {
-        for(let j=i+1; j<teams.length; j++) {
-            matches.push([teams[i], teams[j]]);
+    function addTeam() {
+        const input = document.getElementById('teamInput');
+        const value = input.value.trim();
+        if (value && !teams.includes(value)) {
+            teams.push(value);
+            input.value = '';
+            save();
         }
     }
 
-    let html = "";
-    matches.forEach((m, idx) => {
-        let key = `${m[0]}_vs_${m[1]}`;
-        let valA = scores[key] ? scores[key].a : "";
-        let valB = scores[key] ? scores[key].b : "";
+    function removeTeam(index) {
+        teams.splice(index, 1);
+        save();
+    }
+
+    function renderTeams() {
+        const list = document.getElementById('teamList');
+        list.innerHTML = teams.map((t, i) => `
+            <span class="team-badge">
+                ${t} <span class="remove-btn" onclick="removeTeam(${i})">×</span>
+            </span>
+        `).join('');
+    }
+
+    function generateLeague() {
+        if (teams.length < 2) {
+            alert('최소 2팀 이상 등록해주세요.');
+            return;
+        }
+
+        const board = document.getElementById('matchBoard');
+        board.innerHTML = '<h3>대진표</h3>';
         
-        html += `
-        <div class="match-item card">
-            <div style="font-size:13px; color:#888;">MATCH ${idx + 1}</div>
-            <div class="score-row">
-                <span>${m[0]}</span>
-                <input type="number" value="${valA}" oninput="updateScore('${key}', this.value, 'a')">
-                :
-                <input type="number" value="${valB}" oninput="updateScore('${key}', this.value, 'b')">
-                <span>${m[1]}</span>
-            </div>
-        </div>`;
-    });
-    
-    document.getElementById("matchesDisplay").innerHTML = html;
-    saveData();
-    calcRanking();
-}
-
-function updateScore(key, value, type) {
-    if(!scores[key]) scores[key] = { a: 0, b: 0 };
-    scores[key][type] = parseInt(value) || 0;
-    saveData();
-    calcRanking();
-}
-
-function calcRanking() {
-    let table = {};
-    teams.forEach(t => table[t] = { win: 0, lose: 0, get: 0, lost: 0 });
-
-    for(let key in scores) {
-        let [t1, t2] = key.split("_vs_");
-        let s1 = scores[key].a;
-        let s2 = scores[key].b;
-
-        if(s1 === 0 && s2 === 0) continue; // 점수 입력 전 패스
-
-        table[t1].get += s1; table[t1].lost += s2;
-        table[t2].get += s2; table[t2].lost += s1;
-
-        if(s1 > s2) { table[t1].win++; table[t2].lose++; }
-        else if(s2 > s1) { table[t2].win++; table[t1].lose++; }
+        let matchCount = 1;
+        for (let i = 0; i < teams.length; i++) {
+            for (let j = i + 1; j < teams.length; j++) {
+                const card = document.createElement('div');
+                card.className = 'match-card';
+                card.innerHTML = `
+                    <span><strong>제 ${matchCount}경기</strong></span>
+                    <span>
+                        ${teams[i]} 
+                        <input type="number" class="score-input"> 
+                        <span class="vs">VS</span> 
+                        <input type="number" class="score-input"> 
+                        ${teams[j]}
+                    </span>
+                `;
+                board.appendChild(card);
+                matchCount++;
+            }
+        }
     }
 
-    let sorted = Object.entries(table).sort((a, b) => {
-        if(b[1].win !== a[1].win) return b[1].win - a[1].win; // 1순위: 승수
-        return (b[1].get - b[1].lost) - (a[1].get - a[1].lost); // 2순위: 득실차
-    });
-
-    let h = `<table><tr><th>순위</th><th>이름</th><th>승-패</th><th>득실</th></tr>`;
-    sorted.forEach((r, i) => {
-        h += `<tr class="${i===0?'rank-1':''}">
-            <td>${i+1}</td>
-            <td>${r[0]}</td>
-            <td>${r[1].win}승 ${r[1].lose}패</td>
-            <td>${r[1].get - r[1].lost}</td>
-        </tr>`;
-    });
-    h += `</table>`;
-    document.getElementById("rankingDisplay").innerHTML = h;
-}
-
-function saveData() {
-    localStorage.setItem('bm_teams', JSON.stringify(teams));
-    localStorage.setItem('bm_scores', JSON.stringify(scores));
-}
-
-function resetAll() {
-    if(confirm("모든 데이터를 지우고 처음부터 다시 시작할까요?")) {
-        localStorage.clear();
-        location.reload();
+    function resetData() {
+        if (confirm('모든 데이터를 초기화하시겠습니까?')) {
+            teams = [];
+            localStorage.removeItem('doublesTeams');
+            document.getElementById('matchBoard').innerHTML = '';
+            renderTeams();
+        }
     }
-}
+
+    // 초기 실행
+    renderTeams();
 </script>
 
 </body>
